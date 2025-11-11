@@ -1,0 +1,162 @@
+import json
+import re
+import subprocess
+from collections.abc import Iterator
+from itertools import batched
+from typing import Final, TypedDict
+
+from pathlib import Path
+
+from github_custom_actions import ActionBase, ActionInputs, ActionOutputs
+
+
+match_error_message: Final = re.compile(
+    r"(?P<file>.+):(?P<position>\d+): "
+    r"(?P<category>parser|validity) error : "
+    r"(?P<message>.+)"
+).fullmatch
+
+
+def crunch_whitespace(s: str) -> str:
+    s = s.replace("\n", " ")
+    while "   " in s:
+        s = s.replace("   ", "")
+    while "  " in s:
+        s = s.replace("  ", "")
+    return s
+
+
+SUMMARY_ERRORS_TABLE_TEMPLATE: Final = crunch_whitespace(
+    """\
+<table>
+  <thead>
+    <tr>
+    <th>Category</th>
+    <th>Error message</th>
+    <th>File path</th>
+    <th>Position</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for error in errors -%}
+    <tr>
+    <td>{{ error.category }}</td>
+    <td>{{ error.message }}</td>
+    <td><code>{{ error.file|e }}</code></td>
+    <td>{{ error.position }}</td>
+    </tr>
+    <td colspan="4"><pre>{{ error.snippet.splitlines()[0]|e }}<br>{{ error.snippet.splitlines()[1][1:]|e }}</pre></td>
+    </tr>
+    {%- endfor %}
+  </tbody>
+</table>
+"""
+)
+
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, Path):
+            return str(o)
+        else:
+            return super().default(o)
+
+
+class Error(TypedDict):
+    file: Path
+    position: int
+    category: str
+    message: str
+    snippet: str
+
+
+class Inputs(ActionInputs):
+    root_folder: Path = Path(".")
+    file_pattern: str = "**/*.xml"
+    huge_files: bool = False
+    validate: bool = False
+
+
+class Outputs(ActionOutputs):
+    errors_html: str
+    errors_json: str
+
+
+class Action(ActionBase):
+    inputs: Inputs
+    outputs: Outputs
+
+    def main(self):
+        # newer versions of xmllint also have --pedantic and --strict-namespace
+        self.xmllint_options = (
+            ["--noout"]
+            + ["--huge"] * self.inputs.huge_files
+            + ["--validate"] * self.inputs.validate
+        )
+
+        errors: list[Error] = []
+
+        for file in self.iterate_files():
+            errors.extend(self.validate_file(file))
+
+        self.outputs.errors_json = json.dumps(errors, cls=JSONEncoder)
+        errors_html = self.render(SUMMARY_ERRORS_TABLE_TEMPLATE, errors=errors)
+        assert "\n" not in errors_html, errors_html
+        self.outputs.errors_html = errors_html
+
+        summary_header = "## xmllint Validation Report\n\n"
+        if errors:
+            self.summary = summary_header + errors_html
+            raise SystemExit(1)
+        else:
+            self.summary = summary_header + "Validation succeeded without errors."
+
+    def iterate_files(self) -> Iterator[Path]:
+        for file in (Path.cwd() / self.inputs.root_folder).rglob(
+            self.inputs.file_pattern
+        ):
+            assert file.is_file(follow_symlinks=True)
+            yield file
+
+    def validate_file(self, file: Path) -> list[Error]:
+        process_result = subprocess.run(
+            ["xmllint"] + self.xmllint_options + [file], capture_output=True, text=True
+        )
+        if errors := self.parse_xmllint_output(process_result.stderr):
+            assert process_result.returncode != 0
+        else:
+            assert process_result.returncode == 0
+        return errors
+
+    def parse_xmllint_output(self, output: str) -> list[Error]:
+        errors: list[Error] = []
+
+        lines = output.splitlines()
+        assert len(lines) % 3 == 0
+
+        for message, snippet, pointer in batched(lines, n=3):
+            match = match_error_message(message)
+            assert match, message
+
+            errors.append(
+                {
+                    "file": self.handle_file_path(match.group("file")),
+                    "position": int(match.group("position")),
+                    "category": {"parser": "syntax", "validity": "validity"}[
+                        match.group("category")
+                    ],
+                    "message": match.group("message"),
+                    "snippet": f"{snippet}\n{pointer}",
+                }
+            )
+
+        return errors
+
+    @staticmethod
+    def handle_file_path(path: str) -> Path:
+        return Path(path.removeprefix("/github/workspace/"))
+
+
+if __name__ == "__main__":
+    # TODO validate xmllint version
+    Action().run()
