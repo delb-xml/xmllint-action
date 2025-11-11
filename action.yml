@@ -17,6 +17,10 @@ inputs:
     description: TODO
     required: false
     default: false
+  validate:
+    description: TODO requires a DTD
+    required: false
+    default: false
 
 outputs:
   errors_html:

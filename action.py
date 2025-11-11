@@ -11,13 +11,16 @@ from github_custom_actions import ActionBase, ActionInputs, ActionOutputs
 
 
 match_error_message = re.compile(
-    r"(?P<file>.+):(?P<position>\d+): parser error : (?P<message>.+)"
+    r"(?P<file>.+):(?P<position>\d+): "
+    r"(?P<category>parser|validity) error : "
+    r"(?P<message>.+)"
 ).fullmatch
 
 
 class Error(NamedTuple):
     file: Path
     position: int
+    category: str
     message: str
     snippet: str
 
@@ -26,6 +29,7 @@ class Inputs(ActionInputs):
     root_folder: Path = Path(".")
     file_pattern: str = "**/*.xml"
     huge_files: bool = False
+    validate: bool = False
 
 
 class Outputs(ActionOutputs):
@@ -39,9 +43,11 @@ class Action(ActionBase):
 
     def main(self):
         # newer versions of xmllint also have --pedantic and --strict-namespace
-        self.xmllint_options = ["--noout", "--valid"] + [
-            "--huge"
-        ] * self.inputs.huge_files
+        self.xmllint_options = (
+            ["--noout"]
+            + ["--huge"] * self.inputs.huge_files
+            + ["--validate"] * self.inputs.validate
+        )
 
         errors: list[Error] = []
 
@@ -54,6 +60,7 @@ class Action(ActionBase):
         <table>
           <thead>
             <tr>
+            <th>Category</th>
             <th>File path</th>
             <th>Position</th>
             <th>Error message</th>
@@ -63,6 +70,7 @@ class Action(ActionBase):
           <tbody>
             {% for error in errors -%}
             <tr>
+            <td>{{ error.category }}</td>
             <td>{{ error.file }}</td>
             <td>{{ error.position }}</td>
             <td>{{ error.message }}</td>
@@ -109,12 +117,15 @@ class Action(ActionBase):
             assert ": parser error :" in message, message
 
             match = match_error_message(message)
-            assert match
+            assert match, message
 
             errors.append(
                 Error(
                     file=match.group("file"),
                     position=int(match.group("position")),
+                    category={"parser": "syntax", "validity": "validity"}[
+                        match.group("category")
+                    ],
                     message=match.group("message"),
                     snippet=f"{snippet}\n{pointer}",
                 )
@@ -127,6 +138,7 @@ class Action(ActionBase):
         return {
             "file": error.file,
             "positon": error.position,
+            "category": error.category,
             "message": error.message,
             "snippet": error.snippet,
         }
