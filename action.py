@@ -106,7 +106,7 @@ class Action(ActionBase):
         assert len(lines) % 3 == 0
 
         for message, snippet, pointer in batched(lines, n=3):
-            assert ": parser error :" in message
+            assert ": parser error :" in message, message
 
             match = match_error_message(message)
             assert match
