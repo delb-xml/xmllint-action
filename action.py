@@ -102,8 +102,10 @@ class Action(ActionBase):
             ["xmllint"] + self.xmllint_options + [file], capture_output=True, text=True
         )
         if errors := self.parse_xmllint_output(process_result.stderr):
+            assert errors
             assert process_result.returncode != 0
         else:
+            assert not errors, errors
             assert process_result.returncode > 0, (process_result.returncode, errors)
         return errors
 
