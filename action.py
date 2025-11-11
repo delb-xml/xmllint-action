@@ -57,28 +57,11 @@ class Action(ActionBase):
         self.outputs.errors_json = json.dumps([self.error_as_dict(e) for e in errors])
         self.outputs.errors_html = self.render(
             """\
-        <table>
-          <thead>
-            <tr>
-            <th>Category</th>
-            <th>File path</th>
-            <th>Position</th>
-            <th>Error message</th>
-            <th>Snippet</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for error in errors -%}
-            <tr>
-            <td>{{ error.category }}</td>
-            <td>{{ error.file }}</td>
-            <td>{{ error.position }}</td>
-            <td>{{ error.message }}</td>
-            <td><pre>{{ error.snippet }}</pre></td>
-            </tr>
-            {%- endfor %}
-          </tbody>
-        </table>
+        |Category|File path|Position|Error message|Snippet|
+        |--------|---------|--------|-------------|-------|
+        {% for error in errors -%}
+            |{{ error.category }}|{{ error.file }}|{{ error.position }}|{{ error.message }}|`{{ error.snippet }}`
+        {%- endfor %}
         """,
             errors=errors,
         )
