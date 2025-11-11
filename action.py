@@ -91,7 +91,7 @@ class Action(ActionBase):
 
     def validate_file(self, file: Path) -> list[Error]:
         process_result = subprocess.run(
-            ["xmlllint"] + self.xmllint_options + [file], capture_output=True, text=True
+            ["xmllint"] + self.xmllint_options + [file], capture_output=True, text=True
         )
         if errors := self.parse_xmllint_output(process_result.stderr):
             assert process_result.returncode != 0
