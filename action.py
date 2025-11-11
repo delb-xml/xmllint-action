@@ -85,10 +85,10 @@ class Action(ActionBase):
 
         summary_header = "## xmllint validation report\n\n"
         if errors:
-            self.summary.text = summary_header + self.outputs.errors_html
+            self.summary.text += summary_header + self.outputs.errors_html
             raise SystemExit(1)
         else:
-            self.summary.text = summary_header + "Validation succeeded without errors."
+            self.summary.text += summary_header + "Validation succeeded without errors."
 
     def iterate_files(self) -> Iterator[Path]:
         for file in (Path.cwd() / self.inputs.root_folder).rglob(
