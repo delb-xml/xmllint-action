@@ -3,6 +3,7 @@ import re
 import subprocess
 from collections.abc import Iterator
 from itertools import batched
+from textwrap import dedent
 from typing import NamedTuple
 
 from pathlib import Path
@@ -56,13 +57,15 @@ class Action(ActionBase):
 
         self.outputs.errors_json = json.dumps([self.error_as_dict(e) for e in errors])
         self.outputs.errors_html = self.render(
-            """\
-        |Category|File path|Position|Error message|Snippet|
-        |--------|---------|--------|-------------|-------|
-        {% for error in errors -%}
-            |{{ error.category }}|{{ error.file }}|{{ error.position }}|{{ error.message }}|`{{ error.snippet }}`
-        {%- endfor %}
-        """,
+            dedent(
+                """\
+                |Category|File path|Position|Error message|Snippet|
+                |--------|---------|--------|-------------|-------|
+                {% for error in errors -%}
+                  |{{ error.category }}|{{ error.file }}|{{ error.position }}|{{ error.message }}|`{{ error.snippet }}`
+                {%- endfor %}
+                """
+            ),
             errors=errors,
         )
 
