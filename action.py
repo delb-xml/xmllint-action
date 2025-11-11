@@ -104,7 +104,7 @@ class Action(ActionBase):
         if errors := self.parse_xmllint_output(process_result.stderr):
             assert process_result.returncode != 0
         else:
-            assert process_result.returncode > 0
+            assert process_result.returncode > 0, (process_result.returncode, errors)
         return errors
 
     def parse_xmllint_output(self, output: str) -> list[Error]:
@@ -114,8 +114,6 @@ class Action(ActionBase):
         assert len(lines) % 3 == 0
 
         for message, snippet, pointer in batched(lines, n=3):
-            assert ": parser error :" in message, message
-
             match = match_error_message(message)
             assert match, message
 
