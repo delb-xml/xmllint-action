@@ -6,27 +6,29 @@ description: "Validates XML files with xmllint"
 
 inputs:
   root_folder:
-    description: TODO
+    description: Files to validate are searched in this directory and its subfolders.
     required: false
     default: "."
   file_pattern:
-    description: TODO
+    description: This globbing filter will be applied to select files to be validated.
     required: false
     default: "*.xml"
   huge_files:
-    description: TODO
+    description: If `true`, the `--huge` option will be passed to `xmllint`.
     required: false
     default: false
   validate:
-    description: TODO requires a DTD
+    description: >-
+      If `true`, the `--validate` option will be passed to `xmllint`.
+      Requires DTDs to be assigned to each document.
     required: false
     default: false
 
 outputs:
   errors_html:
-    description: TODO
+    description: An HTML table that lists all errors.
   errors_json:
-    description: TODO
+    description: A JSON encoded array of error objects.
 
 runs:
   using: docker

@@ -35,25 +35,25 @@ jobs:
 ### Inputs
 
 - `root_folder`
-  - files to validate are searched in this directory and its subfolders
-  - defaults to `.`
+  - Files to validate are searched in this directory and its subfolders.
+  - Defaults to `.`
 - `file_pattern`
-  - this globbing filter will be applied to select files to be validated
-  - defaults to `*.xml`
+  - This globbing filter will be applied to select files to be validated.
+  - Defaults to `*.xml`
 - `huge_files`
-  - if `true`, the `--huge` option will be passed to `xmllint`
-  - defaults to `false`
+  - If `true`, the `--huge` option will be passed to `xmllint`.
+  - Defaults to `false`
 - `validate`
-  - if `true`, the `--validate` option will be passed to `xmllint`
-  - requires DTDs to be assigned to each document
-  - defaults to `false`
+  - If `true`, the `--validate` option will be passed to `xmllint`.
+  - Requires DTDs to be assigned to each document.
+  - Defaults to `false`
 
 ### Outputs
 
 - `errors_html`
-  - an HTML table that lists all errors
+  - An HTML table that lists all errors.
 - `errors_json`
-  - a JSON encoded array of error objects with these fields:
+  - A JSON encoded array of error objects with these attributes:
     - `file` — path of the file
     - `position` — index/column where the error was spotted
     - `category` — either `syntax` or `validity`
