@@ -36,6 +36,7 @@ jobs:
 
 - `root_folder`
   - Files to validate are searched in this directory and its subfolders.
+    The path must be relative to the current working directory.
   - Defaults to `.`
 - `file_pattern`
   - This globbing filter will be applied to select files to be validated.

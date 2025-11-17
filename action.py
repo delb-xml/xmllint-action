@@ -87,6 +87,11 @@ class Action(ActionBase):
     outputs: Outputs
 
     def main(self):
+        if self.inputs.root_folder.is_absolute():
+            raise ValueError(
+                "The root path must be a relative one to the current working directory."
+            )
+
         errors: list[Error] = []
         # newer versions of xmllint also have --pedantic and --strict-namespace
         self.xmllint_options = (

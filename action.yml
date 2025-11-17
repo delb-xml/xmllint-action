@@ -6,7 +6,9 @@ description: "Validates XML files with xmllint"
 
 inputs:
   root_folder:
-    description: Files to validate are searched in this directory and its subfolders.
+    description: >- 
+      Files to validate are searched in this directory and its subfolders.
+      The path must be relative to the current working directory.
     required: false
     default: "."
   file_pattern:
