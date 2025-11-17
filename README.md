@@ -41,10 +41,10 @@ jobs:
   - This globbing filter will be applied to select files to be validated.
   - Defaults to `*.xml`
 - `huge_files`
-  - If `true`, the `--huge` option will be passed to `xmllint`.
+  - If `"on"`, the `--huge` option will be passed to `xmllint`.
   - Defaults to `false`
 - `validate`
-  - If `true`, the `--validate` option will be passed to `xmllint`.
+  - If `"on"`, the `--validate` option will be passed to `xmllint`.
   - Requires DTDs to be assigned to each document.
   - Defaults to `false`
 

@@ -14,15 +14,15 @@ inputs:
     required: false
     default: "*.xml"
   huge_files:
-    description: If `true`, the `--huge` option will be passed to `xmllint`.
+    description: If `"on"`, the `--huge` option will be passed to `xmllint`.
     required: false
-    default: false
+    default: "off"
   validate:
     description: >-
-      If `true`, the `--validate` option will be passed to `xmllint`.
+      If `"on"`, the `--validate` option will be passed to `xmllint`.
       Requires DTDs to be assigned to each document.
     required: false
-    default: false
+    default: "off"
 
 outputs:
   errors_html:

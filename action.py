@@ -73,8 +73,8 @@ class Error(TypedDict):
 class Inputs(ActionInputs):
     root_folder: Path = Path(".")
     file_pattern: str = "**/*.xml"
-    huge_files: bool = False
-    validate: bool = False
+    huge_files: str = "off"
+    validate: str = "off"
 
 
 class Outputs(ActionOutputs):
@@ -87,14 +87,13 @@ class Action(ActionBase):
     outputs: Outputs
 
     def main(self):
+        errors: list[Error] = []
         # newer versions of xmllint also have --pedantic and --strict-namespace
         self.xmllint_options = (
             ["--noout"]
-            + ["--huge"] * self.inputs.huge_files
-            + ["--validate"] * self.inputs.validate
+            + ["--huge"] * (self.inputs.huge_files == "on")
+            + ["--validate"] * (self.inputs.validate == "on")
         )
-
-        errors: list[Error] = []
 
         for file in self.iterate_files():
             errors.extend(self.validate_file(file))
