@@ -181,7 +181,8 @@ class Action(ActionBase):
         assert column >= 0
 
         previous_lines_data = data[:last_newline_position]
-        assert previous_lines_data and previous_lines_data.endswith(b"\n")
+        if previous_lines_data:
+            assert previous_lines_data.endswith(b"\n")
         line = previous_lines_data.count(b"\n")
         assert line >= 0
 
