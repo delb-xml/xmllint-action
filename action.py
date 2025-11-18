@@ -64,7 +64,8 @@ class JSONEncoder(json.JSONEncoder):
 
 class Error(TypedDict):
     file: Path
-    position: int
+    line: int
+    column: int
     category: str
     message: str
     snippet: str
@@ -103,6 +104,7 @@ class Action(ActionBase):
         for file in self.iterate_files():
             errors.extend(self.validate_file(file))
 
+        self.emit_error_messages(errors)
         self.outputs.errors_json = json.dumps(errors, cls=JSONEncoder)
         errors_html = self.render(SUMMARY_ERRORS_TABLE_TEMPLATE, errors=errors)
         assert "\n" not in errors_html, errors_html
@@ -142,10 +144,16 @@ class Action(ActionBase):
             match = match_error_message(message)
             assert match, message
 
+            file_path = match.group("file")
+            line, column = self.get_line_and_column(
+                file_path, int(match.group("position"))
+            )
+
             errors.append(
                 {
-                    "file": self.handle_file_path(match.group("file")),
-                    "position": int(match.group("position")),
+                    "file": self.handle_file_path(file_path),
+                    "line": line,
+                    "column": column,
                     "category": {"parser": "syntax", "validity": "validity"}[
                         match.group("category")
                     ],
@@ -159,6 +167,40 @@ class Action(ActionBase):
     @staticmethod
     def handle_file_path(path: str) -> Path:
         return Path(path.removeprefix("/github/workspace/"))
+
+    def get_line_and_column(self, file: Path, position: int) -> tuple[int, int]:
+        data = b""
+        with file.open("rb") as f:
+            while (remaining_bytes := position - len(data)) > 0:
+                data += f.read(remaining_bytes)
+        data = data[:position]
+
+        last_newline_position = data.rfind(b"\n")
+
+        column = (
+            position
+            - last_newline_position
+            # offsetting the fact that position starts counting w/ 1
+            - 1
+        )
+        assert column >= 0
+
+        previous_lines_data = data[:last_newline_position]
+        assert previous_lines_data and previous_lines_data.endswith(b"\n")
+        line = previous_lines_data.count(b"\n")
+        assert line >= 0
+
+        return line, column
+
+    def emit_error_messages(self, errors: list[Error]):
+        for error in errors:
+            self.error_message(
+                error["message"],
+                title=f"xmllint {error['category']} error",
+                file=error["file"],
+                line=error["line"],
+                column=error["column"],
+            )
 
 
 if __name__ == "__main__":
