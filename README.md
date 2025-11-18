@@ -56,7 +56,8 @@ jobs:
 - `errors_json`
   - A JSON encoded array of error objects with these attributes:
     - `file` — path of the file
-    - `position` — index/column where the error was spotted
+    - `line` — line where the error was spotted
+    - `column` — column where the error was spotted
     - `category` — either `syntax` or `validity`
     - `message` — the emitted error message
     - `snippet` — a snippet with a portion of the faulty markup, separated by 

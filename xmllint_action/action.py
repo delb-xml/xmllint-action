@@ -34,7 +34,7 @@ SUMMARY_ERRORS_TABLE_TEMPLATE: Final = crunch_whitespace(
     <th>Category</th>
     <th>Error message</th>
     <th>File path</th>
-    <th>Position</th>
+    <th>Line</th>
     </tr>
   </thead>
   <tbody>
@@ -43,7 +43,7 @@ SUMMARY_ERRORS_TABLE_TEMPLATE: Final = crunch_whitespace(
     <td>{{ error.category }}</td>
     <td>{{ error.message }}</td>
     <td><code>{{ error.file|e }}</code></td>
-    <td>{{ error.position }}</td>
+    <td>{{ error.line }}</td>
     </tr>
     <td colspan="4"><pre>{{ error.snippet.splitlines()[0]|e }}<br>{{ error.snippet.splitlines()[1][1:]|e }}</pre></td>
     </tr>
@@ -52,6 +52,7 @@ SUMMARY_ERRORS_TABLE_TEMPLATE: Final = crunch_whitespace(
 </table>
 """
 )
+WORKSPACE_DIRECTORY: Final = Path.cwd()
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -64,7 +65,7 @@ class JSONEncoder(json.JSONEncoder):
 
 class Error(TypedDict):
     file: Path
-    position: int
+    line: int
     category: str
     message: str
     snippet: str
@@ -86,6 +87,14 @@ class Action(ActionBase):
     inputs: Inputs
     outputs: Outputs
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.xmllint_options = (
+            ["--noout"]
+            + ["--huge"] * (self.inputs.huge_files == "on")
+            + ["--validate"] * (self.inputs.validate == "on")
+        )
+
     def main(self):
         if self.inputs.root_folder.is_absolute():
             raise ValueError(
@@ -94,29 +103,25 @@ class Action(ActionBase):
 
         errors: list[Error] = []
         # newer versions of xmllint also have --pedantic and --strict-namespace
-        self.xmllint_options = (
-            ["--noout"]
-            + ["--huge"] * (self.inputs.huge_files == "on")
-            + ["--validate"] * (self.inputs.validate == "on")
-        )
 
         for file in self.iterate_files():
-            errors.extend(self.validate_file(file))
+            file_errors = self.validate_file(file)
+            errors.extend(file_errors)
+            self.emit_error_messages(file_errors)
 
         self.outputs.errors_json = json.dumps(errors, cls=JSONEncoder)
         errors_html = self.render(SUMMARY_ERRORS_TABLE_TEMPLATE, errors=errors)
         assert "\n" not in errors_html, errors_html
         self.outputs.errors_html = errors_html
 
-        summary_header = "## xmllint Validation Report\n\n"
         if errors:
-            self.summary = summary_header + errors_html
+            self.summary = errors_html
             raise SystemExit(1)
         else:
-            self.summary = summary_header + "Validation succeeded without errors."
+            self.summary = "Validation succeeded without errors."
 
     def iterate_files(self) -> Iterator[Path]:
-        for file in (Path.cwd() / self.inputs.root_folder).rglob(
+        for file in (WORKSPACE_DIRECTORY / self.inputs.root_folder).rglob(
             self.inputs.file_pattern
         ):
             assert file.is_file(follow_symlinks=True)
@@ -144,8 +149,8 @@ class Action(ActionBase):
 
             errors.append(
                 {
-                    "file": self.handle_file_path(match.group("file")),
-                    "position": int(match.group("position")),
+                    "file": Path(match.group("file")).relative_to(WORKSPACE_DIRECTORY),
+                    "line": int(match.group("position")),
                     "category": {"parser": "syntax", "validity": "validity"}[
                         match.group("category")
                     ],
@@ -156,9 +161,14 @@ class Action(ActionBase):
 
         return errors
 
-    @staticmethod
-    def handle_file_path(path: str) -> Path:
-        return Path(path.removeprefix("/github/workspace/"))
+    def emit_error_messages(self, errors: list[Error]):
+        for error in errors:
+            self.error_message(
+                error["message"],
+                title=f"xmllint {error['category']} error",
+                file=error["file"],
+                line=error["line"],
+            )
 
 
 if __name__ == "__main__":
