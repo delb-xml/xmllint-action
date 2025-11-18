@@ -52,6 +52,7 @@ SUMMARY_ERRORS_TABLE_TEMPLATE: Final = crunch_whitespace(
 </table>
 """
 )
+WORKSPACE_DIRECTORY: Final = Path.cwd()
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -118,7 +119,7 @@ class Action(ActionBase):
             self.summary = summary_header + "Validation succeeded without errors."
 
     def iterate_files(self) -> Iterator[Path]:
-        for file in (Path.cwd() / self.inputs.root_folder).rglob(
+        for file in (WORKSPACE_DIRECTORY / self.inputs.root_folder).rglob(
             self.inputs.file_pattern
         ):
             assert file.is_file(follow_symlinks=True)
@@ -144,14 +145,12 @@ class Action(ActionBase):
             match = match_error_message(message)
             assert match, message
 
-            file_path = match.group("file")
             line, column = self.get_line_and_column(
-                file_path, int(match.group("position"))
+                Path(match.group("file")), int(match.group("position"))
             )
-
             errors.append(
                 {
-                    "file": self.handle_file_path(file_path),
+                    "file": Path(match.group("file")).relative_to(WORKSPACE_DIRECTORY),
                     "line": line,
                     "column": column,
                     "category": {"parser": "syntax", "validity": "validity"}[
@@ -163,10 +162,6 @@ class Action(ActionBase):
             )
 
         return errors
-
-    @staticmethod
-    def handle_file_path(path: str) -> Path:
-        return Path(path.removeprefix("/github/workspace/"))
 
     def get_line_and_column(self, file: Path, position: int) -> tuple[int, int]:
         data = b""
