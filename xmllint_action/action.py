@@ -34,7 +34,7 @@ SUMMARY_ERRORS_TABLE_TEMPLATE: Final = crunch_whitespace(
     <th>Category</th>
     <th>Error message</th>
     <th>File path</th>
-    <th>Position</th>
+    <th>Line</th>
     </tr>
   </thead>
   <tbody>
@@ -43,7 +43,7 @@ SUMMARY_ERRORS_TABLE_TEMPLATE: Final = crunch_whitespace(
     <td>{{ error.category }}</td>
     <td>{{ error.message }}</td>
     <td><code>{{ error.file|e }}</code></td>
-    <td>{{ error.position }}</td>
+    <td>{{ error.line }}</td>
     </tr>
     <td colspan="4"><pre>{{ error.snippet.splitlines()[0]|e }}<br>{{ error.snippet.splitlines()[1][1:]|e }}</pre></td>
     </tr>
@@ -66,7 +66,6 @@ class JSONEncoder(json.JSONEncoder):
 class Error(TypedDict):
     file: Path
     line: int
-    column: int
     category: str
     message: str
     snippet: str
@@ -88,6 +87,14 @@ class Action(ActionBase):
     inputs: Inputs
     outputs: Outputs
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.xmllint_options = (
+            ["--noout"]
+            + ["--huge"] * (self.inputs.huge_files == "on")
+            + ["--validate"] * (self.inputs.validate == "on")
+        )
+
     def main(self):
         if self.inputs.root_folder.is_absolute():
             raise ValueError(
@@ -96,11 +103,6 @@ class Action(ActionBase):
 
         errors: list[Error] = []
         # newer versions of xmllint also have --pedantic and --strict-namespace
-        self.xmllint_options = (
-            ["--noout"]
-            + ["--huge"] * (self.inputs.huge_files == "on")
-            + ["--validate"] * (self.inputs.validate == "on")
-        )
 
         for file in self.iterate_files():
             errors.extend(self.validate_file(file))
@@ -145,14 +147,10 @@ class Action(ActionBase):
             match = match_error_message(message)
             assert match, message
 
-            line, column = self.get_line_and_column(
-                Path(match.group("file")), int(match.group("position"))
-            )
             errors.append(
                 {
                     "file": Path(match.group("file")).relative_to(WORKSPACE_DIRECTORY),
-                    "line": line,
-                    "column": column,
+                    "line": int(match.group("position")) - 1,
                     "category": {"parser": "syntax", "validity": "validity"}[
                         match.group("category")
                     ],
@@ -163,31 +161,6 @@ class Action(ActionBase):
 
         return errors
 
-    def get_line_and_column(self, file: Path, position: int) -> tuple[int, int]:
-        data = b""
-        with file.open("rb") as f:
-            while (remaining_bytes := position - len(data)) > 0:
-                data += f.read(remaining_bytes)
-        data = data[:position]
-
-        last_newline_position = data.rfind(b"\n")
-
-        column = (
-            position
-            - last_newline_position
-            # offsetting the fact that position starts counting w/ 1
-            - 1
-        )
-        assert column >= 0
-
-        previous_lines_data = data[:last_newline_position]
-        if previous_lines_data:
-            assert previous_lines_data.endswith(b"\n")
-        line = previous_lines_data.count(b"\n")
-        assert line >= 0
-
-        return line, column
-
     def emit_error_messages(self, errors: list[Error]):
         for error in errors:
             self.error_message(
@@ -195,7 +168,6 @@ class Action(ActionBase):
                 title=f"xmllint {error['category']} error",
                 file=error["file"],
                 line=error["line"],
-                column=error["column"],
             )
 
 

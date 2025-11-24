@@ -1,5 +1,5 @@
 FROM python:alpine
-COPY action.py /
+COPY xmllint_action/action.py /
 # temporary installation dependency:
 RUN apk add --no-cache git
 RUN apk add --no-cache libxml2-utils \
