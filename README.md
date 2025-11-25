@@ -1,10 +1,21 @@
 # xmllint Action
 
 This action parses and validates XML documents with [libxml2](https://gitlab.gnome.org/GNOME/libxml2)'s
-`xmllint`. Errors are available as JSON and HTML. The action summary will 
+`xmllint`. Errors are available as JSON and HTML. The job summary will 
 contain the latter.
 
-## Usage
+## Sales display
+
+### Job summary
+
+![](screenshot-summary.png)
+
+### Code annotation
+
+![](screenshot-annotation.png)
+
+
+## Manual
 
 ### Example usage in a workflow
 
@@ -25,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: delb-xml/xmllint-action@0.1
+      - uses: docker://ghcr.io/delb-xml/xmllint-action:0.2
         with:
           root_folder: files
 
@@ -54,17 +65,11 @@ jobs:
 - `errors_html`
   - An HTML table that lists all errors.
 - `errors_json`
-  - A JSON encoded array of error objects with these attributes:
+  - A JSON encoded array of error objects with these fields:
     - `file` — path of the file
     - `line` — line where the error was spotted
-    - `column` — column where the error was spotted
     - `category` — either `syntax` or `validity`
     - `message` — the emitted error message
     - `snippet` — a snippet with a portion of the faulty markup, separated by 
       a newline character the second line contains a caret character that acts
       as optical pointer
-
-## TODO
-
-- generate problem markers, if feasible
-- release as Docker image
