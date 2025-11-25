@@ -150,7 +150,7 @@ class Action(ActionBase):
             errors.append(
                 {
                     "file": Path(match.group("file")).relative_to(WORKSPACE_DIRECTORY),
-                    "line": int(match.group("position")) - 1,
+                    "line": int(match.group("position")),
                     "category": {"parser": "syntax", "validity": "validity"}[
                         match.group("category")
                     ],
